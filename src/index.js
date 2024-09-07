@@ -1,11 +1,13 @@
 import { animate } from './animate-js/animate.js';
 
 const INITIAL_ENEMY_SIZE = 50;
-const INITIAL_ENEMY_SPAWN_RATE = 4000;
-const INITIAL_SPEED = 2;
-const PLAYER_MOVEMENT_SPEED = 2;
-const PLAYER_COLLISION_RESET_X = 100;
+const INITIAL_ENEMY_SPAWN_RATE = 4000 + Math.floor(Math.random() * 500);
+const INITIAL_SPEED = 1 + Math.floor(Math.random() * 5);
+const PLAYER_MOVEMENT_SPEED = 1 + Math.floor(Math.random() * 5);
+const PLAYER_COLLISION_RESET_X = 50 + Math.floor(Math.random() * 5);
 const PLAYER_MAX_X_OFFSET = 16;
+const INITIAL_FRIEND_SIZE = 50; // Size for friends
+const FRIEND_SPAWN_RATE = 4000 + Math.floor(Math.random() * 500); // Spawn rate for friends
 
 let player = document.getElementById('player');
 let pointsElement = document.querySelector('[data-points]');
@@ -15,6 +17,8 @@ let finalPointsElement = document.getElementById('final-points');
 let playAgainButton = document.getElementById('play-again');
 let playPauseButton = document.querySelector('[data-play-pause-game]');
 let arrowsElement = document.getElementById('arrows'); // Arrows display
+let friendInterval;
+let friendSize = INITIAL_FRIEND_SIZE;
 
 let gameInterval;
 let enemyInterval;
@@ -39,12 +43,115 @@ let arrowsUsed = 0; // Track arrows used
 function startGame() {
   document.addEventListener('keydown', handleKeyPress); // Combined listener for movement and shooting
   enemyInterval = setInterval(createEnemy, enemySpawnRate);
+  friendInterval = setInterval(createFriend, FRIEND_SPAWN_RATE); // Initialize friend creation
   gameInterval = setInterval(updateGame, 100);
   resetArrows();
 
   playerHorizontalPos = 0;
   playerMaxX = window.innerWidth - (PLAYER_MAX_X_OFFSET * 16); // Account for player size in pixels
   arrowsElement.textContent = `${arrowsRemaining}`; // Initialize arrows display
+}
+
+// Function to create a friend
+function createFriend() {
+  if (isGamePaused) return;
+
+  let friend = document.createElement('div');
+  friend.classList.add('friend', 'absolute');
+
+  // SVG for the friend (white square)
+  friend.innerHTML = `<svg class="w-full" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="8" y="8" width="16" height="16" fill="#FFFFFF"/>
+</svg>`;
+
+  let randomizedFriendSize = friendSize * Math.random() * 2;
+  let getRandomizedFriendSize = randomizedFriendSize <= 30 ? 30 : randomizedFriendSize;
+  friend.style.bottom = Math.random() * (window.innerHeight - getRandomizedFriendSize) + 'px';
+  friend.style.left = window.innerWidth + 'px';
+  friend.style.width = `${getRandomizedFriendSize}px`;
+  friend.style.height = `${getRandomizedFriendSize}px`;
+  document.querySelector('[data-game-area]').appendChild(friend);
+
+  let moveInterval = setInterval(() => {
+    if (isGamePaused) return;
+
+    let currentLeft = parseFloat(window.getComputedStyle(friend).left);
+    if (currentLeft < -friendSize) {
+      friend.remove();
+    } else {
+      friend.style.left = `${currentLeft - speed}px`;
+    }
+  }, 20);
+}
+// Function to handle collision with a friend
+function checkFriendCollision(friend) {
+  let friendRect = friend.getBoundingClientRect();
+  let playerRect = player.getBoundingClientRect();
+
+  if (
+    !(friendRect.right < playerRect.left ||
+      friendRect.left > playerRect.right ||
+      friendRect.bottom < playerRect.top ||
+      friendRect.top > playerRect.bottom)
+  ) {
+    // Randomly choose an outcome
+    let outcome = Math.floor(Math.random() * 4);
+    function createAnimation() {
+      animate.create(player,
+        {
+          keyframes: {
+            0: {
+              transform: 'rotate(0deg)',
+            },
+            10: {
+              transform: 'rotate(10deg)',
+            },
+            20: {
+              transform: 'rotate(-10deg)',
+            },
+            30: {
+              transform: 'rotate(10deg)',
+            },
+            50: {
+              transform: 'rotate(-10deg)',
+            },
+            100: {
+              transform: 'rotate(0deg)',
+            }
+          },
+        })
+    }
+    switch (outcome) {
+      case 0:
+        createAnimation();
+
+        playerHorizontalPos = PLAYER_COLLISION_RESET_X;
+        player.style.left = `${playerHorizontalPos}px`;
+
+        break;
+      case 1:
+        createAnimation();
+
+        arrowsRemaining = 5;
+        arrowsElement.textContent = `${arrowsRemaining}`;
+
+        break;
+      case 2:
+        createAnimation();
+
+        lives = 5;
+        livesElement.textContent = lives;
+
+      case 3:
+        createAnimation();
+
+        enemyCount += 10;
+        pointsElement.textContent = enemyCount;
+
+    }
+
+    friend.remove();
+  }
 }
 
 function handleKeyPress(e) {
@@ -66,14 +173,14 @@ function handleKeyPress(e) {
 function movePlayerUp() {
   let currentBottom = parseFloat(window.getComputedStyle(player).bottom);
   if (currentBottom < window.innerHeight - player.clientHeight) {
-    player.style.bottom = `${currentBottom + 20}px`;
+    player.style.bottom = `${currentBottom + 50}px`;
   }
 }
 
 function movePlayerDown() {
   let currentBottom = parseFloat(window.getComputedStyle(player).bottom);
   if (currentBottom > 0) {
-    player.style.bottom = `${currentBottom - 20}px`;
+    player.style.bottom = `${currentBottom - 50}px`;
   }
 }
 
@@ -139,6 +246,7 @@ function createEnemy() {
       enemyCount++;
       pointsElement.textContent = enemyCount;
     } else {
+      // randomize speed
       enemy.style.left = `${currentLeft - speed}px`;
     }
   }, 20);
@@ -151,6 +259,11 @@ function handleArrowShooting() {
     arrowsUsed++; // Increment the used arrow count
     arrowsElement.textContent = `${arrowsRemaining}`; // Update arrow count
     arrowCooldown = true;
+    player.appendChild(
+      createElement('div').setAttribute('class',
+      'absolute size-3 bg-yellow-500 rounded-full animate-ping'
+      )
+    )
     setTimeout(() => {
       arrowCooldown = false; // Reset cooldown after 1 second
     }, 1000);
@@ -256,6 +369,7 @@ function resetArrows() {
   }
 }
 // Update game function
+// Update game function
 function updateGame() {
   if (isGamePaused) return;
 
@@ -282,6 +396,10 @@ function updateGame() {
         player.style.left = `${playerHorizontalPos}px`;
       }
     }
+  });
+
+  document.querySelectorAll('.friend').forEach((friend) => {
+    checkFriendCollision(friend);
   });
 
   pointsElement.textContent = enemyCount;
@@ -322,10 +440,11 @@ playAgainButton.addEventListener('click', () => {
 });
 
 // Add this function to handle touch control events
-function handleTouchControl(e) {
+// Update event listener to use the new handleTouchControl function
+function handleTouchControl(control) {
   if (isGamePaused) return;
 
-  const action = e.target.getAttribute('data-touch');
+  const action = control.getAttribute('data-touch');
   if (action) {
     switch (action) {
       case 'up':
@@ -346,7 +465,7 @@ let allTouchControls = document.querySelectorAll('[data-touch]');
 allTouchControls.forEach(control => {
   control.addEventListener('click', () => {
     console.log('Touch control clicked:', control.getAttribute('data-touch'));
-    handleTouchControl
+    handleTouchControl(control);
   });
 });
 
@@ -354,49 +473,3 @@ playPauseButton.addEventListener('click', toggleGamePause);
 
 startGame();
 
-/**
- * Star Animation
- */
-
-let allStars = document.querySelectorAll('.star');
-
-allStars.forEach(star => {
-  // random number between 0 and 100
-  let initLeft = Math.floor(Math.random() * 150);
-  let initTop = Math.floor(Math.random() * 150);
-  let endLeft = Math.floor(Math.random() * 150);
-  let endTop = Math.floor(Math.random() * 150);
-  animate.create(star,
-    {
-      callback: () => {
-        animate.destroy(star);
-      },
-      direction: 'alternate',
-      duration: 7500 + Math.floor(Math.random() * 5000),
-      iterations: 'infinite',
-      keyframes: {
-        0: {
-          filter: `blur(30px)`,
-          opacity: 0,
-          left: `${initLeft}%`,
-          top: `${initTop}%`,
-          transform: 'translateX(-110vw)',
-        },
-        10: {
-          opacity: 0.7,
-          scale: Math.random() * 2,
-        },
-        90: {
-          opacity: 0.7,
-          scale: Math.random() * 2,
-          filter: `blur(${Math.random() * 50}px)`,
-        },
-        100: {
-          left: `${endLeft}%`,
-          top: `${endTop}%`,
-          transform: 'translateX(110vw)',
-          filter: `blur(30px)`,
-        }
-      }
-    })
-});
