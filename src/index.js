@@ -1,9 +1,9 @@
 import { animate } from './animate-js/animate.js';
 
 const INITIAL_ENEMY_SIZE = 50;
-const INITIAL_ENEMY_SPAWN_RATE = 2000;
-const INITIAL_SPEED = 1;
-const PLAYER_MOVEMENT_SPEED = 0.5;
+const INITIAL_ENEMY_SPAWN_RATE = 4000;
+const INITIAL_SPEED = 2;
+const PLAYER_MOVEMENT_SPEED = 2;
 const PLAYER_COLLISION_RESET_X = 100;
 const PLAYER_MAX_X_OFFSET = 16;
 
@@ -371,7 +371,7 @@ allStars.forEach(star => {
       callback: () => {
         animate.destroy(star);
       },
-      // direction: 'alternate',
+      direction: 'alternate',
       duration: 7500 + Math.floor(Math.random() * 5000),
       iterations: 'infinite',
       keyframes: {
